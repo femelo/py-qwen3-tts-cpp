@@ -255,7 +255,7 @@ setup(
         "py_qwen3_tts_cpp": ["*.so", "*.so.*", "*.dylib", "*.dll"],
     },
     long_description_content_type="text/markdown",
-    license="MIT",
+    license="Apache 2.0",
     entry_points={
         "console_scripts": [
             "pqw3tts=py_qwen3_tts_cpp.examples.main:main",

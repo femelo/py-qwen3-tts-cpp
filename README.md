@@ -1,53 +1,51 @@
-# py-qwen3-tts-cpp
+# Py-Qwen3-TTS-cpp
 
-Python bindings for [qwen3-tts.cpp](https://github.com/predict-woo/qwen3-tts.cpp) using [pybind11](https://github.com/pybind/pybind11).
+Python bindings for [qwen3-tts.cpp](https://github.com/predict-woo/qwen3-tts.cpp) using [pybind11](https://github.com/pybind/pybind11). Powered by a high-performance C++ backend. This library provides a seamless way to synthesize speech and clone voices using GGUF models.
 
-## Features
+## 🚀 Features
 
-- Speech synthesis from text (TTS)
-- Voice cloning from a reference WAV file or NumPy array
-- Speaker embedding extraction and reuse (cache embeddings to skip the encoder)
-- Multi-language support: English, German, Spanish, Chinese, French, Japanese, Korean, Russian
-- High-level Python wrapper (`Qwen3TTSModel`) and low-level native bindings
-- CLI entry point (`pqw3tts`)
+* **High-Level Wrapper**: Simple, pythonic API for speech synthesis and voice cloning.
+* **Automatic Model Download**: Pass a HuggingFace repo ID and both GGUF files are fetched automatically.
+* **Voice Cloning**: Clone any voice from a reference WAV file or a NumPy array.
+* **Speaker Embedding Cache**: Extract embeddings once and reuse them to skip the encoder on subsequent calls.
+* **NumPy Integration**: Receive generated audio directly as `np.float32` arrays.
+* **Multi-Language Support**: English, German, Spanish, Chinese, French, Japanese, Korean, Russian.
 
-## Installation
+---
 
-### From source
+## 📦 Installation
 
 ```bash
-git clone --recursive https://github.com/femelo/py-qwen3-tts-cpp.git
-cd py-qwen3-tts-cpp
-pip install .
+pip install py-qwen3-tts-cpp
 ```
 
-> **Note:** Requires CMake ≥ 3.14, a C++17 compiler, and Python ≥ 3.11.
+**Note**: For non-WAV reference audio files, ensure `ffmpeg` is installed and available in your system `PATH`.
 
-## Quick start
+---
 
-### Option A — auto-download from HuggingFace
+## 🛠 Usage
 
-Pass a model name and both the TTS and tokenizer GGUF files are downloaded automatically from the `OpenVoiceOS` HuggingFace repo:
+### 1. Basic Synthesis
+
+Synthesize speech from text with just a few lines of code. Pass a HuggingFace repo ID and both GGUF files are downloaded automatically:
 
 ```python
 from py_qwen3_tts_cpp.model import Qwen3TTSModel
 
-# Downloads qwen3-tts-0.6b-q8-0.gguf and qwen3-tts-tokenizer-0.6b-q8-0.gguf
-model = Qwen3TTSModel(tts_model="qwen3-tts-0.6b-q8-0")
+# Downloads qwen3-tts-0.6b-q8-0.gguf and qwen3-tts-tokenizer-0.6b-q8-0.gguf automatically
+model = Qwen3TTSModel(tts_model="qwen3-tts-0.6b-q8-0", n_threads=4)
 
 result = model.synthesize("Hello, world!", language="en")
 model.save_audio(result, "output.wav")
 ```
 
-Available model names: `qwen3-tts-0.6b-f16`, `qwen3-tts-0.6b-q8-0`, `qwen3-tts-0.6b-q5-k-m`, `qwen3-tts-0.6b-q4-k-m`.
+Available model IDs: `qwen3-tts-0.6b-f16`, `qwen3-tts-0.6b-q8-0`, `qwen3-tts-0.6b-q5-k-m`, `qwen3-tts-0.6b-q4-k-m`.
 
-### Option B — local GGUF files
+### 2. Local GGUF Files
 
-Pass explicit paths to both GGUF files:
+Pass explicit paths to both GGUF files if you already have them on disk:
 
 ```python
-from py_qwen3_tts_cpp.model import Qwen3TTSModel
-
 model = Qwen3TTSModel(
     tts_model="/path/to/models/qwen3-tts-0.6b-f16.gguf",
     tokenizer_model="/path/to/models/qwen3-tts-tokenizer-0.6b-f16.gguf",
@@ -57,7 +55,9 @@ result = model.synthesize("Hello, world!", language="en")
 model.save_audio(result, "output.wav")
 ```
 
-### Voice cloning
+### 3. Voice Cloning
+
+Clone a voice from a reference audio file (WAV at 24 kHz recommended, or any format if `ffmpeg` is available):
 
 ```python
 result = model.synthesize_with_voice(
@@ -67,22 +67,61 @@ result = model.synthesize_with_voice(
 model.save_audio(result, "cloned.wav")
 ```
 
-### Pre-computed speaker embedding
+### 4. Speaker Embedding Cache
+
+Extract a speaker embedding once and reuse it across multiple calls, skipping the encoder entirely:
 
 ```python
 import numpy as np
 
-# Extract once and cache
+# Extract once and save
 embedding = model.extract_speaker_embedding("/path/to/reference.wav")
 np.save("speaker.npy", embedding)
 
-# Reuse later (skips the encoder)
+# Reuse later (encoder step is skipped)
 embedding = np.load("speaker.npy")
 result = model.synthesize_with_embedding("Reusing the cached voice.", embedding)
 model.save_audio(result, "from_embedding.wav")
 ```
 
-## CLI
+---
+
+## ⚙️ Configuration
+
+The `Qwen3TTSModel` accepts several parameters to fine-tune performance:
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `tts_model` | `str` | HuggingFace repo ID or path to TTS GGUF file. |
+| `tokenizer_model` | `str` | Path to tokenizer GGUF file (auto-downloaded when using a repo ID). |
+| `models_dir` | `str` | Directory to cache downloaded models (default: platform user-data dir). |
+| `language` | `str` | Language code for synthesis, e.g. `"en"`, `"zh"` (default: `"en"`). |
+| `n_threads` | `int` | Number of CPU threads to use (default: 4). |
+| `max_audio_tokens` | `int` | Maximum audio tokens to generate (default: 4096). |
+| `temperature` | `float` | Sampling temperature — 0 for greedy (default: 0.9). |
+| `top_p` | `float` | Top-p nucleus sampling probability (default: 1.0). |
+| `top_k` | `int` | Top-k sampling, 0 to disable (default: 50). |
+| `repetition_penalty` | `float` | Repetition penalty for token generation (default: 1.05). |
+| `print_timing` | `bool` | Print inference timing summary (default: False). |
+
+---
+
+## 🌐 Supported Languages
+
+| Code | Language | Language ID |
+| :--- | :--- | :--- |
+| `en` | English | 2050 |
+| `de` | German | 2053 |
+| `es` | Spanish | 2054 |
+| `zh` | Chinese | 2055 |
+| `fr` | French | 2061 |
+| `ja` | Japanese | 2058 |
+| `ko` | Korean | 2064 |
+| `ru` | Russian | 2069 |
+
+---
+
+## 💻 CLI
 
 ```bash
 # Basic synthesis
@@ -91,68 +130,31 @@ pqw3tts "Hello, world!" --output hello.wav
 # With language and model options
 pqw3tts "Hola mundo" --language es --tts-model qwen3-tts-0.6b-f16 --output hola.wav
 
-# Playback example (requires sounddevice)
+# Synthesize and play back immediately (requires sounddevice)
 pqw3tts-playback "Hello from the terminal"
 ```
 
 Run `pqw3tts --help` for a full list of options.
 
-## Supported languages
+---
 
-| Code | Language   | Language ID |
-|------|------------|-------------|
-| `en` | English    | 2050        |
-| `de` | German     | 2053        |
-| `es` | Spanish    | 2054        |
-| `zh` | Chinese    | 2055        |
-| `fr` | French     | 2061        |
-| `ja` | Japanese   | 2058        |
-| `ko` | Korean     | 2064        |
-| `ru` | Russian    | 2069        |
+## 📝 License
 
-## API reference
+This project is licensed under the **Apache License 2.0**.
 
-### `Qwen3TTSModel`
+**Author:** femelo
+**Copyright:** © 2026
 
-| Method | Description |
-|---|---|
-| `synthesize(text, ...)` | Generate speech from text |
-| `synthesize_with_voice(text, reference_audio, ...)` | Voice cloning from file or NumPy array |
-| `extract_speaker_embedding(reference_audio)` | Extract speaker embedding for reuse |
-| `synthesize_with_embedding(text, embedding, ...)` | Synthesize with cached embedding |
-| `save_audio(result, path)` | Save a `TtsResult` to a WAV file |
-| `is_ready()` | Check if models are loaded |
-| `last_error` | Last error message from the engine |
+---
 
-### `TtsParams` (native)
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-| Field | Default | Description |
-|---|---|---|
-| `max_audio_tokens` | 4096 | Maximum audio tokens to generate |
-| `temperature` | 0.9 | Sampling temperature |
-| `top_p` | 1.0 | Top-p nucleus sampling |
-| `top_k` | 50 | Top-k sampling (0 = disabled) |
-| `repetition_penalty` | 1.05 | Repetition penalty |
-| `n_threads` | 4 | Number of CPU threads |
-| `language_id` | 2050 | Language ID (see table above) |
-| `print_progress` | False | Print token generation progress |
-| `print_timing` | False | Print timing summary |
+    http://www.apache.org/licenses/LICENSE-2.0
 
-### `TtsResult` (native)
-
-| Field | Description |
-|---|---|
-| `audio` | Generated audio as a `numpy.ndarray` (float32, 24 kHz mono) |
-| `sample_rate` | Sample rate (always 24000) |
-| `success` | Whether synthesis succeeded |
-| `error_msg` | Error message on failure |
-| `t_load_ms` | Model load time (ms) |
-| `t_tokenize_ms` | Tokenization time (ms) |
-| `t_encode_ms` | Audio encoding time (ms) |
-| `t_generate_ms` | Token generation time (ms) |
-| `t_decode_ms` | Audio decoding time (ms) |
-| `t_total_ms` | Total synthesis time (ms) |
-
-## License
-
-MIT
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
