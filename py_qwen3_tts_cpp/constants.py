@@ -20,24 +20,21 @@ LANGUAGE_IDS = {
 }
 
 
-# example: "https://huggingface.co/OpenVoiceOS/qwen3-tts-0.6b-f16/resolve/main/qwen3-tts-0.6b-f16.gguf"
-MODEL_URL_TEMPLATE = "https://huggingface.co/OpenVoiceOS/{model}/resolve/main/{file_name}.gguf"
+# Each TTS model repo on HuggingFace contains both the TTS and tokenizer GGUF files.
+# example TTS:       "https://huggingface.co/OpenVoiceOS/qwen3-tts-0.6b-f16/resolve/main/qwen3-tts-0.6b-f16.gguf"
+# example tokenizer: "https://huggingface.co/OpenVoiceOS/qwen3-tts-0.6b-f16/resolve/main/qwen3-tts-tokenizer-0.6b-f16.gguf"
+HF_FILE_URL_TEMPLATE = "https://huggingface.co/OpenVoiceOS/{repo}/resolve/main/{file_name}.gguf"
 
 PACKAGE_NAME = "py_qwen3_tts_cpp"
 MODELS_DIR = Path(user_data_dir(PACKAGE_NAME)) / "models"
 
 
-AVAILABLE_MODELS = {
-    "tts": [
-        "qwen3-tts-0.6b-f16",
-        "qwen3-tts-0.6b-q8-0",
-        "qwen3-tts-0.6b-q5-k-m",
-        "qwen3-tts-0.6b-q4-k-m",
-    ],
-    "tokenizer": [
-        "qwen3-tts-tokenizer-f16",
-    ],
-}
+AVAILABLE_MODELS = [
+    "qwen3-tts-0.6b-f16",
+    "qwen3-tts-0.6b-q8-0",
+    "qwen3-tts-0.6b-q5-k-m",
+    "qwen3-tts-0.6b-q4-k-m",
+]
 
 
 PARAMS_SCHEMA = {
@@ -49,8 +46,8 @@ PARAMS_SCHEMA = {
     },
     "tokenizer_model": {
         "type": str,
-        "description": "Tokenizer model to use, can be a local path or a model name from the available models list. "
-        "If not specified, it will be automatically determined based on the TTS model.",
+        "description": "Path to a local tokenizer GGUF file. "
+        "If not specified, it is downloaded automatically from the same repo as the TTS model.",
         "options": None,
         "default": None,
     },

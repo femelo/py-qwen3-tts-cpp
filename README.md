@@ -25,16 +25,34 @@ pip install .
 
 ## Quick start
 
+### Option A — auto-download from HuggingFace
+
+Pass a model name and both the TTS and tokenizer GGUF files are downloaded automatically from the `OpenVoiceOS` HuggingFace repo:
+
 ```python
 from py_qwen3_tts_cpp.model import Qwen3TTSModel
 
-# Load from a directory containing the model files
+# Downloads qwen3-tts-0.6b-q8-0.gguf and qwen3-tts-tokenizer-0.6b-q8-0.gguf
+model = Qwen3TTSModel(tts_model="qwen3-tts-0.6b-q8-0")
+
+result = model.synthesize("Hello, world!", language="en")
+model.save_audio(result, "output.wav")
+```
+
+Available model names: `qwen3-tts-0.6b-f16`, `qwen3-tts-0.6b-q8-0`, `qwen3-tts-0.6b-q5-k-m`, `qwen3-tts-0.6b-q4-k-m`.
+
+### Option B — local GGUF files
+
+Pass explicit paths to both GGUF files:
+
+```python
+from py_qwen3_tts_cpp.model import Qwen3TTSModel
+
 model = Qwen3TTSModel(
     tts_model="/path/to/models/qwen3-tts-0.6b-f16.gguf",
-    tokenizer_model="/path/to/models/qwen3-tts-tokenizer-f16.gguf",
+    tokenizer_model="/path/to/models/qwen3-tts-tokenizer-0.6b-f16.gguf",
 )
 
-# Synthesize speech
 result = model.synthesize("Hello, world!", language="en")
 model.save_audio(result, "output.wav")
 ```

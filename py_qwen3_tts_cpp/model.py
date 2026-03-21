@@ -60,25 +60,20 @@ class Qwen3TTSModel:
         print_progress: bool = False,
     ) -> None:
         if Path(tts_model).is_file():
+            # Local path explicitly provided
             self.tts_model_path = tts_model
-        else:
-            self.tts_model_path = utils.download_model(
-                tts_model,
-                models_dir,
-                model_type=utils.ModelType.TTS,
-            )
-
-        if tokenizer_model:
-            if Path(tokenizer_model).is_file():
+            if tokenizer_model:
+                if not Path(tokenizer_model).is_file():
+                    raise ValueError(f"Tokenizer model file not found: {tokenizer_model}")
                 self.tokenizer_model_path = tokenizer_model
             else:
-                self.tokenizer_model_path = utils.download_model(
-                    tokenizer_model,
-                    models_dir,
-                    model_type=utils.ModelType.TOKENIZER,
-                )
+                self.tokenizer_model_path = None  # load_models_from_dir will be used
         else:
-            self.tokenizer_model_path = None
+            # Model name → auto-download both TTS and tokenizer from HuggingFace
+            self.tts_model_path, self.tokenizer_model_path = utils.download_tts_models(
+                tts_model,
+                models_dir,
+            )
 
         self.tts = native.Qwen3TTS()
         self._models_dir: str | None = models_dir

@@ -11,10 +11,9 @@ from typing import TextIO
 import requests
 from tqdm import tqdm
 
-from enum import StrEnum
 from py_qwen3_tts_cpp.constants import (
     AVAILABLE_MODELS,
-    MODEL_URL_TEMPLATE,
+    HF_FILE_URL_TEMPLATE,
     MODELS_DIR,
 )
 
@@ -22,46 +21,75 @@ from py_qwen3_tts_cpp.constants import (
 logger = logging.getLogger(__name__)
 
 
-class ModelType(StrEnum):
-    TTS = "tts"
-    TOKENIZER = "tokenizer"
+def _tokenizer_name(tts_model_name: str) -> str:
+    """
+    Derives the tokenizer file name from the TTS model name.
+    e.g. "qwen3-tts-0.6b-q8-0" -> "qwen3-tts-tokenizer-0.6b-q8-0"
+    """
+    return tts_model_name.replace("qwen3-tts-", "qwen3-tts-tokenizer-", 1)
 
 
-def _get_model_url(model_name: str) -> str:
+def _get_tts_urls(tts_model_name: str) -> tuple[str, str]:
     """
-    Returns the url of the `ggml` model
-    :param model_name: name of the model
-    :return: URL of the model
+    Returns (tts_url, tokenizer_url) for a given TTS model name.
+    Both files live in the same HuggingFace repo named after the TTS model.
     """
-    file_name = (
-        model_name.replace("q8-0", "q8_0")
-        .replace("q5-k-m", "q5_k_m")
-        .replace("q4-k-m", "q4_k_m")
+    tokenizer_name = _tokenizer_name(tts_model_name)
+    tts_url = HF_FILE_URL_TEMPLATE.format(repo=tts_model_name, file_name=tts_model_name)
+    tokenizer_url = HF_FILE_URL_TEMPLATE.format(repo=tts_model_name, file_name=tokenizer_name)
+    return tts_url, tokenizer_url
+
+
+def _download_file(url: str, file_path: Path, desc: str, chunk_size: int = 1024) -> str:
+    """Downloads a single file with a progress bar. Returns the absolute path."""
+    if file_path.exists():
+        logger.info(f"{desc} already exists at {file_path}")
+        return str(file_path.absolute())
+
+    resp = requests.get(url, stream=True)
+    total = int(resp.headers.get("content-length", 0))
+
+    progress_bar = tqdm(
+        desc=f"Downloading {desc} ...",
+        total=total,
+        unit="iB",
+        unit_scale=True,
+        unit_divisor=1024,
     )
-    return MODEL_URL_TEMPLATE.format(model=model_name, file_name=file_name)
+
+    try:
+        with open(file_path, "wb") as file, progress_bar:
+            for data in resp.iter_content(chunk_size=chunk_size):
+                size = file.write(data)
+                progress_bar.update(size)
+        logger.info(f"Downloaded to {file_path.absolute()}")
+    except Exception as e:
+        os.remove(file_path)
+        raise e
+
+    return str(file_path.absolute())
 
 
-def download_model(
-    model_name: str,
+def download_tts_models(
+    tts_model_name: str,
     download_dir: str | None = None,
     chunk_size: int = 1024,
-    model_type: ModelType = ModelType.TTS,
-) -> str:
+) -> tuple[str, str]:
     """
-    Helper function to download the `ggml` models
-    :param model_name: name of the model, one of ::: constants.AVAILABLE_MODELS
-    :param download_dir: Where to store the models
-    :param chunk_size: size of the download chunk
-    :param model_type: type of model to download
+    Downloads both the TTS and tokenizer GGUF files for the given model name.
+    Both files are fetched from the same HuggingFace repo.
 
-    :return: Absolute path of the downloaded model
+    :param tts_model_name: one of AVAILABLE_MODELS, e.g. "qwen3-tts-0.6b-q8-0"
+    :param download_dir: local directory to store the files (defaults to platform user-data dir)
+    :param chunk_size: download chunk size in bytes
+    :return: (tts_model_path, tokenizer_model_path) as absolute path strings
     """
-    available_models = AVAILABLE_MODELS[model_type]
-    if model_name not in available_models:
+    if tts_model_name not in AVAILABLE_MODELS:
         logger.error(
-            f"Invalid model name `{model_name}`, available models are: {available_models}"
+            f"Invalid model name `{tts_model_name}`, available models are: {AVAILABLE_MODELS}"
         )
         raise ValueError("Invalid model name")
+
     if download_dir is None:
         download_dir = str(MODELS_DIR)
         logger.info(
@@ -70,35 +98,15 @@ def download_model(
 
     os.makedirs(download_dir, exist_ok=True)
 
-    url = _get_model_url(model_name=model_name)
-    file_path = Path(download_dir) / os.path.basename(url)
-    # check if the file is already there
-    if file_path.exists():
-        logger.info(f"Model {model_name} already exists in {download_dir}")
-    else:
-        # download it from huggingface
-        resp = requests.get(url, stream=True)
-        total = int(resp.headers.get("content-length", 0))
+    tts_url, tokenizer_url = _get_tts_urls(tts_model_name)
+    tts_path = Path(download_dir) / f"{tts_model_name}.gguf"
+    tokenizer_name = _tokenizer_name(tts_model_name)
+    tokenizer_path = Path(download_dir) / f"{tokenizer_name}.gguf"
 
-        progress_bar = tqdm(
-            desc=f"Downloading {model_name} ...",
-            total=total,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        )
+    tts_abs = _download_file(tts_url, tts_path, tts_model_name, chunk_size)
+    tokenizer_abs = _download_file(tokenizer_url, tokenizer_path, tokenizer_name, chunk_size)
 
-        try:
-            with open(file_path, "wb") as file, progress_bar:
-                for data in resp.iter_content(chunk_size=chunk_size):
-                    size = file.write(data)
-                    progress_bar.update(size)
-            logger.info(f"Model downloaded to {file_path.absolute()}")
-        except Exception as e:
-            # error download, just remove the file
-            os.remove(file_path)
-            raise e
-    return str(file_path.absolute())
+    return tts_abs, tokenizer_abs
 
 
 @contextlib.contextmanager
