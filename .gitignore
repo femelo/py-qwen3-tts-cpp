@@ -1,3 +1,19 @@
+# C++ build artifacts
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+build/
+dist/
+_build/
+*.egg-info/
+*env*/
+
+# custom
+.idea/
+src/.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
